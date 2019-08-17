@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 
 STATION = 'udp://192.168.0.178:9999?overrun_nonfatal=1&fifo_size=1316'
-STEREO_SIZE = (424, 240)
+STEREO_SIZE = (640, 360)
 MONOCULAR = (STEREO_SIZE[0] / 2, STEREO_SIZE[1])
 MODEL_INPUT = (513, 257)
 
