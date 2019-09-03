@@ -1,19 +1,21 @@
-/* awake
+ /* awake
   by Kyungwon Chun <kwchun@biobrain.kr>
   Mon. Aug. 12, 2019
 
   Move servo as an actuator every random period to keep 
-  awake the Oculus goggle.
+  awake the Oculus DK.
 */
 
 #include <Servo.h>
 
 Servo stimulant;  // create servo object to control a servo
 
-int MIN_ANGLE = 0; // degree
-int MAX_ANGLE = 180; // degree
-long PERIOD = 5L * 60L * 1000L; // milliseconds
-long MOVING_PERIOD = 100L; // milliseconds
+int MIN_ANGLE = 30; // degree
+int MAX_ANGLE = 150; // degree
+long PERIOD = 1L * 60L * 1000L; // milliseconds
+long MOVING_PERIOD = 1000L; // milliseconds
+bool go_max = true;
+long alarm; // random value
 
 void setup() {
   Serial.begin(9600); // open the serial port at 9600 bps:
@@ -32,23 +34,27 @@ void loop() {
   Serial.print("PERIOD: ");
   Serial.println(PERIOD);
   
-  long alarm = random(PERIOD - MOVING_PERIOD);
+  alarm = random(PERIOD - MOVING_PERIOD);
   
   Serial.print("alarm: ");
   Serial.println(alarm);
   
   delay(alarm);
-  
-  stimulant.write(MAX_ANGLE);  // tell servo to go to position in variable 'pos'
+
+  if (go_max) {
+    stimulant.write(MAX_ANGLE);  // tell servo to go to position in variable 'pos'
+    go_max = false;
+  } else {
+    stimulant.write(MIN_ANGLE);
+    go_max = true;
+  }
   
   Serial.print("MOVING_PERIOD: ");
   Serial.println(MOVING_PERIOD);
   
-  delay(MOVING_PERIOD);  // waits 15ms for the servo to reach the position
-  
-  stimulant.write(MIN_ANGLE);
+  delay(MOVING_PERIOD);  // waits 1s for the servo to reach the position
+   
   Serial.print("residual: ");
-  
-  Serial.println(PERIOD - alarm);
-  delay(PERIOD - alarm);
+  Serial.println(PERIOD - alarm - MOVING_PERIOD);
+  delay(PERIOD - alarm - MOVING_PERIOD);
 }
