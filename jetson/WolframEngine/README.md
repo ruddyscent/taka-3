@@ -1,4 +1,4 @@
-# HowTo: Install Wolfram Eigine on Jetson
+# HowTo: Install Wolfram Engine on Jetson
 
 As shown at ‘[Launching Today: Free Wolfram Engine for Developer](https://writings.stephenwolfram.com/2019/05/launching-today-free-wolfram-engine-for-developers/](https://writings.stephenwolfram.com/2019/05/launching-today-free-wolfram-engine-for-developers/),’ Wolfram Engine is licensed as free for developers and home users. If the result remains as open, we can use Wolfram Engine without any cost. However, the distributed version is the lack of ARM architecture. 
 
@@ -18,7 +18,7 @@ $ sudo ln -s ../Wolfram/WolframEngine/12.0/Executables/WolframKernel ./
 $ sudo ln -s ../Wolfram/WolframScript/bin/wolframscript ./
 ```
 
-The mathematica executable fails to recognize the operating system and returns an error. Because Mathematica supports arm64, there may be a trick to deceives Mathematica into believing the OS is one of RPi.
+The Mathematica executable fails to recognize the operating system and returns an error. Because Mathematica supports arm64, there may be a trick to deceives Mathematica into believing the OS is one of RPi.
 
 ```console
 $ mathematica
@@ -83,11 +83,11 @@ libGL error: No matching fbConfigs or visuals found
 libGL error: failed to load driver: swrast
 ```
 
-![IMAGE](/Users/kwchun/Workspace/taka-3/jetson/WolframEngine/image/activation.png)
+![Welcome window](image/activation.png)
 
 Automatic Web Activation seems that it does work. However, the manual activation works well. Using Activation Key, MathID, and password, we can activate our copy of Mathematica:
-![IMAGE](/Users/kwchun/Workspace/taka-3/jetson/WolframEngine/image/welcome.png)
-![IMAGE](/Users/kwchun/Workspace/taka-3/jetson/WolframEngine/image/notebook.png)
+![Welcome window](image/welcome.png)
+![Notebook interface](image/notebook.png)
 
 ## Limitations
 
