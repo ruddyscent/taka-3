@@ -1,8 +1,8 @@
 # HowTo: Install Wolfram Engine on Jetson
 
-As shown at ‘[Launching Today: Free Wolfram Engine for Developer](https://writings.stephenwolfram.com/2019/05/launching-today-free-wolfram-engine-for-developers/](https://writings.stephenwolfram.com/2019/05/launching-today-free-wolfram-engine-for-developers/),’ Wolfram Engine is licensed as free for developers and home users. If the result remains as open, we can use Wolfram Engine without any cost. However, the distributed version is the lack of ARM architecture. 
+As shown at [Launching Today: Free Wolfram Engine for Developer](https://writings.stephenwolfram.com/2019/05/launching-today-free-wolfram-engine-for-developers/](https://writings.stephenwolfram.com/2019/05/launching-today-free-wolfram-engine-for-developers/), Wolfram Engine is licensed as free for developers and home users. If the result remains as open, we can use Wolfram Engine without any cost. However, the distributed version is the lack of ARM architecture. 
 
-Fortunately, ARM version of Wolfram Engine is distributed in the RPi image. Copy whole /usr/Wolfram directory on Raspberry Pi to an external storage, and mount it to /mnt on Jetson. Then:
+Fortunately, ARM version of Wolfram Engine is distributed in the RPi image. Copy whole `/usr/Wolfram` directory on Raspberry Pi to an external storage, and mount it to `/mnt` on Jetson. Then:
 
 ```console
 $ cd /mnt
