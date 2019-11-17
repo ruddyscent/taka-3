@@ -64,47 +64,52 @@ SIM_DEFAULT = { # (name, value, save)
 
 ACTION_FMT = {
     "RestoreOriginalControllerDevice":
-    textwrap.dedent("""\
-                    <?xml version='1.0' encoding='UTF-8'?> 
-                    <soap:Envelope xmlns:soap='http://schemas.xmlsoap.org/soap/envelope/' xmlns:xsd='http://www.w3.org/2001/XMLSchema' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'>
-                    <soap:Body>
-                    <RestoreOriginalControllerDevice><a>1</a><b>2</b></RestoreOriginalControllerDevice>
-                    </soap:Body>
-                    </soap:Envelope>)"""),
+    ("<?xml version='1.0' encoding='UTF-8'?> "
+     "<soap:Envelope xmlns:soap='http://schemas.xmlsoap.org/soap/envelope/' "
+     "xmlns:xsd='http://www.w3.org/2001/XMLSchema' "
+     "xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'> "
+     "<soap:Body> "
+     "<RestoreOriginalControllerDevice><a>1</a><b>2</b> "
+     "</RestoreOriginalControllerDevice> "
+     "</soap:Body> "
+     "</soap:Envelope>"),
     "InjectUAVControllerInterface":
-    textwrap.dedent("""\
-                    <?xml version='1.0' encoding='UTF-8'?> i
-                    <soap:Envelope xmlns:soap='http://schemas.xmlsoap.org/soap/envelope/' xmlns:xsd='http://www.w3.org/2001/XMLSchema' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'> 
-                    <soap:Body> 
-                    <InjectUAVControllerInterface><a>1</a><b>2</b></InjectUAVControllerInterface> 
-                    </soap:Body> 
-                    </soap:Envelope>"""),
+    ("<?xml version='1.0' encoding='UTF-8'?> "
+     "<soap:Envelope xmlns:soap='http://schemas.xmlsoap.org/soap/envelope/' "
+     "xmlns:xsd='http://www.w3.org/2001/XMLSchema' "
+     "xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'> "
+     "<soap:Body> "
+     "<InjectUAVControllerInterface><a>1</a><b>2</b> "
+     "</InjectUAVControllerInterface> "
+     "</soap:Body> "
+     "</soap:Envelope>"),
     "ExchangeData":
-    textwrap.dedent("""\
-                    (<?xml version='1.0' encoding='UTF-8'?>
-                    <soap:Envelope xmlns:soap='http://schemas.xmlsoap.org/soap/envelope/' xmlns:xsd='http://www.w3.org/2001/XMLSchema' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'>
-                    <soap:Body>
-                    <ExchangeData>
-                    <pControlInputs>
-                    <m-selectedChannels>4095</m-selectedChannels>
-                    <m-channelValues-0to1>
-                    <item>%.4f</item>
-                    <item>%.4f</item>
-                    <item>%.4f</item>
-                    <item>%.4f</item>
-                    <ite>%.4f</item>
-                    <item>%.4f</item>
-                    <item>%.4f</item>
-                    <item>%.4f</item>
-                    <item>%.4f</item>
-                    <item>%.4f</item>
-                    <item>%.4f</item>
-                    <item>%.4f</item>
-                    </m-channelValues-0to1>
-                    </pControlInputs>
-                    </ExchangeData>
-                    </soap:Body>
-                    </soap:Envelope>)"""),
+    ("<?xml version='1.0' encoding='UTF-8'?> "
+     "<soap:Envelope xmlns:soap='http://schemas.xmlsoap.org/soap/envelope/' "
+     "xmlns:xsd='http://www.w3.org/2001/XMLSchema' "
+     "xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'> "
+     "<soap:Body> "
+     "<ExchangeData> "
+     "<pControlInputs> "
+     "<m-selectedChannels>4095</m-selectedChannels> "
+     "<m-channelValues-0to1> "
+     "<item>{:.4f}</item> "
+     "<item>{:.4f}</item> "
+     "<item>{:.4f}</item> "
+     "<item>{:.4f}</item> "
+     "<item>{:.4f}</item> "
+     "<item>{:.4f}</item> "
+     "<item>{:.4f}</item> "
+     "<item>{:.4f}</item> "
+     "<item>{:.4f}</item> "
+     "<item>{:.4f}</item> "
+     "<item>{:.4f}</item> "
+     "<item>{:.4f}</item> "
+     "</m-channelValues-0to1> "
+     "</pControlInputs> "
+     "</ExchangeData> "
+     "</soap:Body> "
+     "</soap:Envelope>"),
 }
 
 
@@ -115,21 +120,35 @@ class FlightAxisConnector(object):
 
     _URL = "biobrain.tplinkdns.com"
     _PORT = 18083
-    _msg = f"(POST / HTTP/1.1 \
-            soapaction: %s \
-            content-length: %s \
-            content-type: text/xml;charset='UTF-8' \
-            connection: keep-alive \
-            \
-            %s)"
+    _msg = ("POST / HTTP/1.1 "
+            "soapaction: {} "
+            "content-length: {} "
+            "content-type: text/xml;charset='UTF-8' "
+            "connection: keep-alive "
+            "{}")
 
     def __init__(self):
-        self._host_ip = socket.gethostbyname(FlightAxis._URL)  # type: str
-        self._s = socket.socket(socket.AF_INET,
-                                socket.SOCK_STREAM)  # type: socket.socket
-        self._s.connect((self._host_ip, FlightAxis._PORT))
+        self._host_ip = socket.gethostbyname(
+            FlightAxisConnector._URL)  # type: str
+        self._socket = socket.socket(socket.AF_INET,
+                                     socket.SOCK_STREAM)  # type: socket.socket
+        # self._socket.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
+        self._socket.connect((self._host_ip, FlightAxisConnector._PORT))
+        self._socket.setblocking(0)
+        self._socket.settimeout(1)
 
-        self.servo = np.zero(16, dtype=int)
+        # self._socket.bind(
+        #    ("biobrain.tplinkdns.com", FlightAxisConnector._PORT))
+        # self._socket.listen()
+        # conn, addr = s.accept()
+        # with conn:
+        #     print('Connected by', addr)
+        #     while True:
+        #         data = conn.recv(1024)
+        #         if not data:
+        #             break
+        #         print(data)
+        self.servos = np.ones(12, dtype=float)
 
     def soap_request(self, action: str, fmt: str) -> str:
         """
@@ -142,13 +161,26 @@ class FlightAxisConnector(object):
         Returns:
             Return string from RealFlight.
         """
-        msg = FlightAxis._msg.format(action, len(fmt), fmt)
-        return self._s.send(bytes(msg, encoding="utf8"))
+        print(action)
+        msg = FlightAxisConnector._msg.format(action, len(fmt), fmt)
+        ret = self._socket.send(bytes(msg, encoding="utf8"))
+        ret = self._socket.send(msg.encode())
+        print(bytes(msg, encoding="utf8"))
+        print(msg.encode())
+        print(ret)
+
+        data = self._socket.recv(10000).decode()
+        return data
 
 
 if __name__ == "__main__":
-    ax = FlightAxis()
-    action = "InjectUAVControllerInterface"
-    print(ax.soap_request(action, ax._action_fmt[action]))
+    fac = FlightAxisConnector()
+
     action = "RestoreOriginalControllerDevice"
-    print(ax.soap_request(action, ax._action_fmt[action]))
+    print(fac.soap_request(action, ACTION_FMT[action]))
+
+    # action = "InjectUAVControllerInterface"
+    # print(fac.soap_request(action, ACTION_FMT[action]))
+
+    # action = "ExchangeData"
+    # print(fac.soap_request(action, ACTION_FMT[action].format(*fac.servos)))
