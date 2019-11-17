@@ -64,14 +64,14 @@ SIM_DEFAULT = { # (name, value, save)
 
 ACTION_FMT = {
     "RestoreOriginalControllerDevice":
-    ("<?xml version='1.0' encoding='UTF-8'?> "
+    ("<?xml version='1.0' encoding='UTF-8'?>\n"
      "<soap:Envelope xmlns:soap='http://schemas.xmlsoap.org/soap/envelope/' "
      "xmlns:xsd='http://www.w3.org/2001/XMLSchema' "
-     "xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'> "
-     "<soap:Body> "
-     "<RestoreOriginalControllerDevice><a>1</a><b>2</b> "
-     "</RestoreOriginalControllerDevice> "
-     "</soap:Body> "
+     "xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'>\n"
+     "<soap:Body>\n"
+     "<RestoreOriginalControllerDevice><a>1</a><b>2</b>"
+     "</RestoreOriginalControllerDevice>\n"
+     "</soap:Body>\n"
      "</soap:Envelope>"),
     "InjectUAVControllerInterface":
     ("<?xml version='1.0' encoding='UTF-8'?> "
@@ -79,7 +79,7 @@ ACTION_FMT = {
      "xmlns:xsd='http://www.w3.org/2001/XMLSchema' "
      "xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'> "
      "<soap:Body> "
-     "<InjectUAVControllerInterface><a>1</a><b>2</b> "
+     "<InjectUAVControllerInterface><a>1</a><b>2</b>"
      "</InjectUAVControllerInterface> "
      "</soap:Body> "
      "</soap:Envelope>"),
@@ -120,11 +120,12 @@ class FlightAxisConnector(object):
 
     _URL = "biobrain.tplinkdns.com"
     _PORT = 18083
-    _msg = ("POST / HTTP/1.1 "
-            "soapaction: {} "
-            "content-length: {} "
-            "content-type: text/xml;charset='UTF-8' "
-            "connection: keep-alive "
+    _msg = ("POST / HTTP/1.1\n"
+            "soapaction: '{}'\n"
+            "content-length: {}\n"
+            "content-type: text/xml;charset='UTF-8'\n"
+            "Connection: Keep-Alive\n"
+            "\n"
             "{}")
 
     def __init__(self):
@@ -133,6 +134,7 @@ class FlightAxisConnector(object):
         self._socket = socket.socket(socket.AF_INET,
                                      socket.SOCK_STREAM)  # type: socket.socket
         # self._socket.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
+        # self._host_ip = "127.0.0.1"
         self._socket.connect((self._host_ip, FlightAxisConnector._PORT))
         self._socket.setblocking(0)
         self._socket.settimeout(1)
@@ -163,11 +165,11 @@ class FlightAxisConnector(object):
         """
         print(action)
         msg = FlightAxisConnector._msg.format(action, len(fmt), fmt)
-        ret = self._socket.send(bytes(msg, encoding="utf8"))
-        ret = self._socket.send(msg.encode())
-        print(bytes(msg, encoding="utf8"))
-        print(msg.encode())
-        print(ret)
+        # ret = self._socket.send(bytes(msg, encoding="utf_8"))
+        ret = self._socket.send(msg.encode("utf_8", errors="strict"))
+        #print(bytes(msg, encoding="utf8"))
+        print(msg)
+        #print(ret)
 
         data = self._socket.recv(10000).decode()
         return data
@@ -176,11 +178,11 @@ class FlightAxisConnector(object):
 if __name__ == "__main__":
     fac = FlightAxisConnector()
 
-    action = "RestoreOriginalControllerDevice"
-    print(fac.soap_request(action, ACTION_FMT[action]))
-
-    # action = "InjectUAVControllerInterface"
+    # action = "RestoreOriginalControllerDevice"
     # print(fac.soap_request(action, ACTION_FMT[action]))
 
-    # action = "ExchangeData"
-    # print(fac.soap_request(action, ACTION_FMT[action].format(*fac.servos)))
+    action = "InjectUAVControllerInterface"
+    print(fac.soap_request(action, ACTION_FMT[action]))
+
+    action = "ExchangeData"
+    print(fac.soap_request(action, ACTION_FMT[action].format(*fac.servos)))
