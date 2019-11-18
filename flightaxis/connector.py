@@ -18,9 +18,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import socket
-import textwrap
 
 import numpy as np
+
+from xml.etree import ElementTree as ET
 
 SIM_DEFAULT = { # (name, value, save)        
         "AHRS_EKF_TYPE": (10, False),
@@ -113,6 +114,21 @@ ACTION_FMT = {
 }
 
 
+def is_number(s: str) -> bool:
+    return s.replace('.', '').replace('-', '').isdigit()
+
+
+def parse_tail(s: str):
+    if is_number(s):
+        return float(s)
+    elif s == 'true':
+        return True
+    elif s == 'false':
+        return False
+    else:
+        return s
+
+
 class FlightAxisConnector(object):
     """Simulator connector for FlightAxis Link
 
@@ -139,20 +155,100 @@ class FlightAxisConnector(object):
         self._socket.setblocking(0)
         self._socket.settimeout(1)
 
-        # self._socket.bind(
-        #    ("biobrain.tplinkdns.com", FlightAxisConnector._PORT))
-        # self._socket.listen()
-        # conn, addr = s.accept()
-        # with conn:
-        #     print('Connected by', addr)
-        #     while True:
-        #         data = conn.recv(1024)
-        #         if not data:
-        #             break
-        #         print(data)
-        self.servos = np.ones(12, dtype=float)
+        self.servos = np.zeros(12, dtype=float)
+        self.controller_started = False
+        self.frame_counter = 0
+        self.activation_frame_counter = 0
+        self.average_frame_time_s = 0
+        self.socket_frame_counter = 0
+        self.state = {
+            "m-currentPhysicsTime-SEC": 0,
+            "m-currentPhysicsSpeedMultiplier": 1,
+            "m-airspeed-MPS": 0,
+            "m-altitudeASL-MTR": 0,
+            "m-altitudeAGL-MTR": 0,
+            "m-groundspeed-MPS": 0,
+            "m-pitchRate-DEGpSEC": 0,
+            "m-rollRate-DEGpSEC": 0,
+            "m-yawRate-DEGpSEC": 0,
+            "m-azimuth-DEG": 0,
+            "m-inclination-DEG": 0,
+            "m-roll-DEG": 0,
+            "m-orientationQuaternion-X": 0,
+            "m-orientationQuaternion-Y": 0,
+            "m-orientationQuaternion-Z": 0,
+            "m-orientationQuaternion-W": 0,
+            "m-aircraftPositionX-MTR": 0,
+            "m-aircraftPositionY-MTR": 0,
+            "m-velocityWorldU-MPS": 0,
+            "m-velocityWorldV-MPS": 0,
+            "m-velocityWorldW-MPS": 0,
+            "m-velocityBodyU-MPS": 0,
+            "m-velocityBodyV-MPS": 0,
+            "m-velocityBodyW-MPS": 0,
+            "m-accelerationWorldAX-MPS2": 0,
+            "m-accelerationWorldAY-MPS2": 0,
+            "m-accelerationWorldAZ-MPS2": 0,
+            "m-accelerationBodyAX-MPS2": 0,
+            "m-accelerationBodyAY-MPS2": 0,
+            "m-accelerationBodyAZ-MPS2": 0,
+            "m-windX-MPS": 0,
+            "m-windY-MPS": 0,
+            "m-windZ-MPS": 0,
+            "m-propRPM": 0,
+            "m-heliMainRotorRPM": -1,
+            "m-batteryVoltage-VOLTS": -1,
+            "m-batteryCurrentDraw-AMPS": -1,
+            "m-batteryRemainingCapacity-MAH": -1,
+            "m-fuelRemaining-OZ": 0,
+            "m-isLocked": False,
+            "m-hasLostComponents": False,
+            "m-anEngineIsRunning": True,
+            "m-isTouchingGround": True,
+            "m-flightAxisControllerIsActive": False,
+            "m-currentAircraftStatus": "CAS-FLYING",
+            "m-resetButtonHasBeenPressed": False,
+        }
 
-    def soap_request(self, action: str, fmt: str) -> str:
+    def exchange_data(control_input) -> None:
+        if (not self.controller_started
+                or self.state["m_flightAxisControllerIsActive"] == False
+                or self.state["m_resetButtonHasBeenPressed"]):
+            self.soap_request("RestoreOriginalControllerDevice")
+            self.soap_request("InjectUAVControllerInterface")
+            self.activation_frame_counter = self.frame_counter
+            self.controller_started = True
+
+        action = "ExchangeData"
+        servo = control_input.servo.tolist()
+        ex_data_msg = ACTION_FMT[action].format(*servo)
+        reply = self.soap_request(action, ex_data_msg)
+        if reply:
+            lastt_s = self.state.m_currentPhysicsTime_SEC
+            self.parse_reply(replay)
+            dt = state.m_currentPhysicsTime_SEC - lastt_s
+            if 0 < dt < 0.1:
+                if self.average_frame_time_s < 1e-6:
+                    self.average_frame_time_s = dt
+                self.average_frame_time_s = (self.average_frame_time_s * 0.98 +
+                                             dt * 0.02)
+            self.socket_frame_counter += 1
+
+    def parse_reply(self, reply: str) -> None:
+        xml_txt = "".join(reply.split("\n")[-2:])
+        root = ET.fromstring(xml_txt)
+
+        aircraft_state = root[0][0][1]
+        for item in aircraft_state:
+            if item.tag in self.state.keys():
+                self.state[item.tag] = parse_tail(item.tail)
+
+        notification = root[0][0][2]
+        for item in notification:
+            if item.tag in self.state.keys():
+                self.state[item.tag] = parse_tail(item.tail)
+
+    def soap_request(self, action: str, fmt: str = "") -> str:
         """
 
         Args:
@@ -163,12 +259,14 @@ class FlightAxisConnector(object):
         Returns:
             Return string from RealFlight.
         """
-        print(action)
+        if fmt == "":
+            fmt = ACTION_FMT[action]
+        #print(action)
         msg = FlightAxisConnector._msg.format(action, len(fmt), fmt)
         # ret = self._socket.send(bytes(msg, encoding="utf_8"))
         ret = self._socket.send(msg.encode("utf_8", errors="strict"))
         #print(bytes(msg, encoding="utf8"))
-        print(msg)
+        #print(msg)
         #print(ret)
 
         data = self._socket.recv(10000).decode()
@@ -181,8 +279,9 @@ if __name__ == "__main__":
     # action = "RestoreOriginalControllerDevice"
     # print(fac.soap_request(action, ACTION_FMT[action]))
 
-    action = "InjectUAVControllerInterface"
-    print(fac.soap_request(action, ACTION_FMT[action]))
+    #action = "InjectUAVControllerInterface"
+    #print(fac.soap_request(action, ACTION_FMT[action]))
 
     action = "ExchangeData"
-    print(fac.soap_request(action, ACTION_FMT[action].format(*fac.servos)))
+    reply = fac.soap_request(action, ACTION_FMT[action].format(*fac.servos))
+    print(reply)
