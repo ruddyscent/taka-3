@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import re
+import requests
 import socket
 
 import numpy as np
@@ -129,6 +131,13 @@ def parse_tail(s: str):
         return s
 
 
+def utf8len(s: str) -> int:
+    """Return byte length of string.
+    """
+
+    return len(s.encode('utf-8'))
+
+
 class FlightAxisConnector(object):
     """Simulator connector for FlightAxis Link
 
@@ -145,15 +154,14 @@ class FlightAxisConnector(object):
             "{}")
 
     def __init__(self):
-        self._host_ip = socket.gethostbyname(
-            FlightAxisConnector._URL)  # type: str
-        self._socket = socket.socket(socket.AF_INET,
-                                     socket.SOCK_STREAM)  # type: socket.socket
-        # self._socket.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
-        # self._host_ip = "127.0.0.1"
-        self._socket.connect((self._host_ip, FlightAxisConnector._PORT))
-        self._socket.setblocking(0)
-        self._socket.settimeout(1)
+        # self._host_ip = socket.gethostbyname(
+        #     FlightAxisConnector._URL)  # type: str
+        # self._socket = socket.socket(socket.AF_INET,
+        #                              socket.SOCK_STREAM)  # type: socket.socket
+        # # self._socket.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
+        # # self._host_ip = "127.0.0.1"
+        # self._socket.connect((self._host_ip, FlightAxisConnector._PORT))
+        # self._socket.setblocking(0)
 
         self.servos = np.zeros(12, dtype=float)
         self.controller_started = False
@@ -210,22 +218,22 @@ class FlightAxisConnector(object):
             "m-resetButtonHasBeenPressed": False,
         }
 
-    def exchange_data(control_input) -> None:
+    def exchange_data(self, control_input) -> None:
         if (not self.controller_started
-                or self.state["m_flightAxisControllerIsActive"] == False
-                or self.state["m_resetButtonHasBeenPressed"]):
+                or self.state["m-flightAxisControllerIsActive"] == False
+                or self.state["m-resetButtonHasBeenPressed"]):
             self.soap_request("RestoreOriginalControllerDevice")
             self.soap_request("InjectUAVControllerInterface")
             self.activation_frame_counter = self.frame_counter
             self.controller_started = True
 
         action = "ExchangeData"
-        servo = control_input.servo.tolist()
+        servo = control_input.tolist()
         ex_data_msg = ACTION_FMT[action].format(*servo)
         reply = self.soap_request(action, ex_data_msg)
         if reply:
-            lastt_s = self.state.m_currentPhysicsTime_SEC
-            self.parse_reply(replay)
+            lastt_s = self.state["m-currentPhysicsTime-SEC"]
+            self.parse_reply(reply)
             dt = state.m_currentPhysicsTime_SEC - lastt_s
             if 0 < dt < 0.1:
                 if self.average_frame_time_s < 1e-6:
@@ -248,7 +256,25 @@ class FlightAxisConnector(object):
             if item.tag in self.state.keys():
                 self.state[item.tag] = parse_tail(item.tail)
 
-    def soap_request(self, action: str, fmt: str = "") -> str:
+    def soap_request(self, action: str, body: str = "") -> str:
+        url = "http://biobrain.tplinkdns.com:18083"
+        _msg = ("POST / HTTP/1.1\n"
+                "soapaction: '{}'\n"
+                "content-length: {}\n"
+                "content-type: text/xml;charset='UTF-8'\n"
+                "Connection: Keep-Alive\n"
+                "\n"
+                "{}")
+        body_encoded = body.encode("utf_8", errors="strict")
+        headers = {"soapaction": action,
+                "content-type": "text/xml;charset='UTF-8'",
+                "Connection": "Keep-Alive",
+                }
+
+        response = requests.post(url, data=body, headers=headers)
+        return response.content
+
+    def soap_request2(self, action: str, fmt: str = "") -> str:
         """
 
         Args:
@@ -259,29 +285,61 @@ class FlightAxisConnector(object):
         Returns:
             Return string from RealFlight.
         """
+        # _socket = socket.socket(socket.AF_INET,
+        #                              socket.SOCK_STREAM)  # type: socket.socket
+        # _socket.connect((self._host_ip, FlightAxisConnector._PORT))
+        # _socket.setblocking(0)
+        # _socket.settimeout(1)
+
         if fmt == "":
             fmt = ACTION_FMT[action]
-        #print(action)
         msg = FlightAxisConnector._msg.format(action, len(fmt), fmt)
         # ret = self._socket.send(bytes(msg, encoding="utf_8"))
         ret = self._socket.send(msg.encode("utf_8", errors="strict"))
         #print(bytes(msg, encoding="utf8"))
-        #print(msg)
-        #print(ret)
 
-        data = self._socket.recv(10000).decode()
+        self._socket.settimeout(1)
+        chunk = self._socket.recv(4096)
+        byte_received = len(chunk)
+        data = chunk.decode()
+        if data == 0:
+            print("No data")
+            return None
+
+        # get content length
+        m = re.search(r"(?<=Content-Length:).+", data)
+        if m is None:
+            print("No Content-Length")
+            return None
+
+        content_length = int(m.group(0))
+
+        q = data.find("<?xml")
+        print("DEBUG DEBUG DEBUG")
+        print(data[q:])
+        # _socket.close()
         return data
 
 
 if __name__ == "__main__":
     fac = FlightAxisConnector()
 
-    # action = "RestoreOriginalControllerDevice"
-    # print(fac.soap_request(action, ACTION_FMT[action]))
+    action = "RestoreOriginalControllerDevice"
+    print(fac.soap_request(action, ACTION_FMT[action]))
+    print("DEBUG DEBUG DEBUG")
 
-    #action = "InjectUAVControllerInterface"
-    #print(fac.soap_request(action, ACTION_FMT[action]))
+    action = "InjectUAVControllerInterface"
+    print(fac.soap_request(action, ACTION_FMT[action]))
+    print("DEBUG DEBUG DEBUG")
 
     action = "ExchangeData"
     reply = fac.soap_request(action, ACTION_FMT[action].format(*fac.servos))
     print(reply)
+
+    # import time
+    # control_input = np.zeros(12)
+    # for i in np.arange(0, 1, 0.1):
+    #     control_input[0] = i
+    #     fac.exchange_data(control_input)
+    #     #print(fac.state)
+    #     time.sleep(1)
